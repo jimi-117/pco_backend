@@ -1,0 +1,93 @@
+name: CI Pipeline for ML model API
+# It runs format/linting and tests on every push to a branch
+# Pipeline for API dev, test and deployment
+# Contains tests and security scan on Docker environment
+
+on:
+  push:
+    branches:
+      - 'feat/**'
+      - develop
+      # - staging
+      - main
+
+  pull_request:
+    branches:
+      - develop
+      # - staging
+      - main
+
+# Using uv package manager for run CI faster
+jobs:
+  test-with-uv:
+    name: Python ${{ matrix.python-version }} on Ubuntu
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+       image: redis:alpine
+       port:
+          - 6379:6379
+      mongodb:
+        image: mongo
+        ports:
+          - 27017:27017
+
+    strategy:
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.12"
+          # - "3.13"
+        include:
+          - python-version: '3.11'
+          - python-version: '3.12'
+          # - python-version: '3.13'
+
+    steps:
+      - name: Checkout the repository
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      # all dependencies are noted in the pyproject.toml file
+      - name: Install the project dependencies
+        run: uv sync --dev
+
+      - name: Run lint checks
+        run: uv run nox -s lint
+
+      - name: Run security checks
+        run: uv run nox -s security
+
+      - name: Run tests
+        run: uv run nox -s test
+        env:
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          MONGODB_URL: mongodb://localhost:27017
+          REDIS_URL: redis://localhost:6379
+          MODEL_PATH: tests/fixtures/test_model.pkl
+
+      - name: Run integration tests
+        run: uv run nox -s integration
+        env:
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          MONGODB_URL: mongodb://localhost:27017
+          REDIS_URL: redis://localhost:6379
+          MODEL_PATH: tests/fixtures/test_model.pkl
+
+# Set monitoring for CI
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results-${{ matrix.python-version }}
+          path: |
+            reports/test-results/
+            reports/coverage/
