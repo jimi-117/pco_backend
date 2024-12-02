@@ -1,0 +1,38 @@
+[project]
+name = "pco-backend"
+version = "0.1.0"
+description = "ML back-end for PCO project"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.5",
+    "mlflow>=2.18.0",
+    "pydantic>=2.10.2",
+    "python-multipart>=0.0.19",
+    "torch>=2.5.1",
+    "torchvision>=0.20.1",
+    "ultralytics>=8.3.39",
+    "uvicorn>=0.32.1",
+]
+
+[dependency-groups]
+dev = [
+    "nox>=2024.10.9",
+    "pytest>=8.3.3",
+    "ruff>=0.8.1",
+    "safety>=3.2.9",
+]
+
+[tool.pytest]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "--cov=app --cov-report=html:reports/coverage"
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+targets = ["app"]
+
+[tool.ruff]
+select = ["E", "F", "B", "S", "I"]
+ignore = ["E501"]
+target-version = ["py311", "py312"]
